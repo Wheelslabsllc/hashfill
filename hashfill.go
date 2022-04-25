@@ -1,6 +1,8 @@
 package hashfill
 
 import (
+	"fmt"
+
 	geom "github.com/twpayne/go-geom"
 )
 
@@ -79,8 +81,8 @@ func NewRecursiveFiller(options ...Option) *RecursiveFiller {
 // Fill fills the polygon with geohashes.
 // It works by computing a set of variable length geohashes which are contained
 // in the polygon, then optionally extending those hashes out to the specified precision.
-func (f RecursiveFiller) Fill(fence *geom.Polygon, mode FillMode) ([]string, error) {
-	hashes, err := f.computeVariableHashses(fence, mode, "")
+func (f RecursiveFiller) Fill(fence *geom.Polygon, mode FillMode, maxHashes int) ([]string, error) {
+	hashes, err := f.computeVariableHashes(fence, mode, "", maxHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -92,29 +94,47 @@ func (f RecursiveFiller) Fill(fence *geom.Polygon, mode FillMode) ([]string, err
 	// If we want fixed precision, we have to iterate through each hash and split it down
 	// to the precision we want.
 	out := make([]string, 0, len(hashes))
+	if len(out) > maxHashes {
+		return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(out))
+	}
 	for _, hash := range hashes {
-		extended := f.extendHashToMaxPrecision(hash)
+		extended, err := f.extendHashToMaxPrecision(hash, maxHashes)
+		if err != nil { 
+			return nil, err
+		}
 		out = append(out, extended...)
+		if len(out) > maxHashes {
+			return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(out))
+		}
 	}
 	return out, nil
 }
 
 // extendHashToMaxPrecision recursively extends out to the max precision.
-func (f RecursiveFiller) extendHashToMaxPrecision(hash string) []string {
+func (f RecursiveFiller) extendHashToMaxPrecision(hash string, maxHashes int) ([]string, error) {
 	if len(hash) == f.maxPrecision {
-		return []string{hash}
+		return []string{hash}, nil
 	}
 	hashes := make([]string, 0, 32)
 	for _, next := range geohashBase32Alphabet {
-		out := f.extendHashToMaxPrecision(hash + next)
+		out, err := f.extendHashToMaxPrecision(hash + next, maxHashes)
+		if err != nil {
+			return nil, err
+		}
+		if len(out) > maxHashes {
+			return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(out))
+		}
 		hashes = append(hashes, out...)
+		if len(hashes) > maxHashes {
+			return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(hashes))
+		}
 	}
-	return hashes
+	return hashes, nil
 }
 
-// computeVariableHashses computes the smallest list of hashes which match the geofence according to the
+// computeVariableHashes computes the smallest list of hashes which match the geofence according to the
 // fill mode.
-func (f RecursiveFiller) computeVariableHashses(fence *geom.Polygon, mode FillMode, hash string) ([]string, error) {
+func (f RecursiveFiller) computeVariableHashes(fence *geom.Polygon, mode FillMode, hash string, maxHashes int) ([]string, error) {
 	cont, err := f.container.Contains(fence, hash)
 	if err != nil {
 		return nil, err
@@ -144,11 +164,17 @@ func (f RecursiveFiller) computeVariableHashses(fence *geom.Polygon, mode FillMo
 	// We didn't reach the max precision, so recurse with the next hash down.
 	hashes := make([]string, 0)
 	for _, next := range geohashBase32Alphabet {
-		out, err := f.computeVariableHashses(fence, mode, hash+next)
+		out, err := f.computeVariableHashes(fence, mode, hash+next, maxHashes)
 		if err != nil {
 			return nil, err
 		}
+		if len(out) > maxHashes {
+			return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(out))
+		}
 		hashes = append(hashes, out...)
+		if len(hashes) > maxHashes {
+			return nil, fmt.Errorf("hash limit at %d, but already have: %d", maxHashes, len(hashes))
+		}
 	}
 	return hashes, nil
 }
