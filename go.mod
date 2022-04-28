@@ -1,4 +1,4 @@
-module github.com/Willyham/hashfill
+module github.com/Wheelslabsllc/hashfill
 
 go 1.12
 
