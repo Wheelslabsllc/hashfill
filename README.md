@@ -1,4 +1,4 @@
-[![GoDoc](http://godoc.org/github.com/Willyham/hashfill?status.png)](http://godoc.org/github.com/Willyham/hashfill) [![Go Report Card](https://goreportcard.com/badge/github.com/Willyham/hashfill)](https://goreportcard.com/report/github.com/Willyham/hashfill)
+[![GoDoc](http://godoc.org/github.com/Wheelslabsll/hashfill?status.png)](http://godoc.org/github.com/Wheelslabsll/hashfill) [![Go Report Card](https://goreportcard.com/badge/github.com/Wheelslabsll/hashfill)](https://goreportcard.com/report/github.com/Wheelslabsll/hashfill)
 
 ## Usage
 
